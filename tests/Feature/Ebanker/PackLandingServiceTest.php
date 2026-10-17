@@ -151,6 +151,52 @@ class PackLandingServiceTest extends TestCase
         $this->assertSame([], $r['watermarks']);
     }
 
+    /** One dataset in several parts (Pack 14's large-export fallback): the parts together are checked, not each alone. */
+    public function test_parts_of_one_query_that_overlap_are_refused(): void
+    {
+        $this->writePack([
+            'GL_14a_fee_batch_full_references__keys_0_200.csv' => ['GL_14a', $this->ledgerCsv([[100, '000104420000005', '1/31/2026', '-10.00', '303'], [150, '000104420000005', '1/31/2026', '10.00', '303']]), []],
+            'GL_14a_fee_batch_full_references__keys_150_999.csv' => ['GL_14a', $this->ledgerCsv([[150, '000104420000005', '1/31/2026', '10.00', '303'], [300, '000104420000005', '1/31/2026', '5.00', '303']]), []],
+        ]);
+        $r = (new PackLandingService())->land($this->dir, 1);
+        $this->assertSame('QUARANTINED', $r['status']);
+        $this->assertStringContainsString("GL_14a: key CUMVOUCH_DET_ID = '150' is in two parts", $r['gates']['pack']['split_parts']['failures'][0]);
+        $this->assertSame(0, DB::table('ebanker_raw_rows')->where('query_id', 'GL_14a')->whereNull('quarantined_at')->count());
+    }
+
+    public function test_the_parts_must_add_up_to_the_control_count_of_the_export(): void
+    {
+        $parts = [
+            'GL_14a_part_1.csv' => ['GL_14a', $this->ledgerCsv([[100, '000104420000005', '1/31/2026', '-10.00', '303']]), []],
+            'GL_14a_part_2.csv' => ['GL_14a', $this->ledgerCsv([[300, '000104420000005', '1/31/2026', '5.00', '303']]), []],
+        ];
+        $this->writePack($parts, ['controls' => ['GL_14a' => ['rows' => 3, 'source' => 'COUNT_GL_14a_fee_batch_full_references.csv']]]);
+        $r = (new PackLandingService())->land($this->dir, 1, PackLandingService::ROUTE_MANUAL, true);
+        $this->assertSame('DRY_RUN_QUARANTINED', $r['status']);
+        $this->assertStringContainsString('the parts hold 2 row(s) but the control count is 3 (COUNT_GL_14a_fee_batch_full_references.csv): a part is missing or doubled', $r['gates']['pack']['split_parts']['failures'][0]);
+
+        $this->writePack($parts, ['controls' => ['GL_14a' => ['rows' => 2], 'GL_14b' => ['rows' => 4]]]);
+        $r = (new PackLandingService())->land($this->dir, 1, PackLandingService::ROUTE_MANUAL, true);
+        $this->assertSame(['GL_14b: a control count is declared but no part of it is in the pack'], $r['gates']['pack']['split_parts']['failures']);
+
+        $this->writePack($parts, ['controls' => ['GL_14a' => ['rows' => 2]]]);
+        $r = (new PackLandingService())->land($this->dir, 1);
+        $this->assertSame('LANDED', $r['status']);
+        $this->assertSame(['parts' => 2, 'rows' => 2, 'control' => 2], $r['gates']['pack']['split_parts']['checked']['GL_14a']);
+        $this->assertSame(2, DB::table('ebanker_raw_rows')->where('query_id', 'GL_14a')->count());
+    }
+
+    public function test_a_linked_source_is_keyed_by_the_voucher_and_its_own_row_id(): void
+    {
+        $csv = "\"CONTEXT_VOUCHER_ID\",\"CONTEXT_DATE\",\"AC_TRN_MST_ID\",\"NEW_AC_NUMBER\"\n"
+            . "\"500\",\"1/31/2026\",\"7\",\"000104420000005\"\n"
+            . "\"500\",\"1/31/2026\",\"8\",\"000104420000005\"\n";
+        $this->writePack(['GL_14b_fee_batch_payment_instructions.csv' => ['GL_14b', $csv, []]]);
+        $r = (new PackLandingService())->land($this->dir, 1);
+        $this->assertSame('LANDED', $r['status']);
+        $this->assertSame(['500|7', '500|8'], DB::table('ebanker_raw_rows')->where('query_id', 'GL_14b')->orderBy('id')->pluck('source_key')->all());
+    }
+
     public function test_an_unknown_query_id_is_refused(): void
     {
         $this->writePack(['X9_99_thing.csv' => ['X9_99', "\"A\",\"B\"\n\"1\",\"2\"\n", []]]);

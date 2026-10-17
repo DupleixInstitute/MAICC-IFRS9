@@ -109,6 +109,18 @@ class EbankerQuerySeeder extends Seeder
             // whatever its flags. Read with P2_10 as the live chart, for the rows P2_10 does not hold (JVD Agro's chart of
             // 12 May 2025; InstalmentChartHistory::LIVE_SUPPLEMENTS); its own id, so no P2_10 row is versioned by it
             ['IC_01', 'Instalment chart rows of the pack 11 loans, every flag (FIXLOAN_INST_CHART)', 'FIXLOAN_INST_CHART', 'INST_CHART_DET_ID', 'NEW_AC_NUMBER', 'INSTALLMENT_DATE', false],
+            // pack 14 (17 October 2026): fee-to-loan lineage, investigative. Each under its own id, outside the LEDGER family
+            // (LandingZoneReader::LEDGER) and the GL fee batches (GlFeeBuildService::GL_FEE_BATCHES): GL_14a is the rows of the
+            // GL_04b fee batches with every column, so landing it under GL_04b or the ledger would version those rows and move
+            // engine figures. The linked sources are one-to-many on the voucher: their key is the voucher and the source's own
+            // row id together. GL_14e reads EXCEL_GLOCTOBER whole and has no key: every part of it comes in one pack.
+            ['GL_14a', 'Fee batches: every leg, full references (CUMVOUCH)', 'CUMVOUCH', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
+            ['GL_14b', 'Fee batches: payment instructions linked by voucher', 'AC_TRAN_INTIMATE', 'CONTEXT_VOUCHER_ID,AC_TRN_MST_ID', 'NEW_AC_NUMBER', 'CONTEXT_DATE', false],
+            ['GL_14c', 'Fee batches: reconciliation records linked by voucher', 'RECON_OTHER_DETAILS', 'CONTEXT_VOUCHER_ID,RECON_DET_ID', 'NEW_AC_NUMBER', 'CONTEXT_DATE', false],
+            ['GL_14d', 'Fee batches: RTGS records linked by voucher', 'RTGS_DETAILS', 'CONTEXT_VOUCHER_ID,RTGS_DET_ID', null, 'CONTEXT_DATE', false],
+            ['GL_14e', 'October 2024 fee import table, whole (EXCEL_GLOCTOBER)', 'EXCEL_GLOCTOBER', null, 'NEW_AC_NUMBER', null, false],
+            // derived on our side from the pack 7 archive (CV_04a), never requested from MAIIC: eir:derive-archive-fee-batches
+            ['GL_14f', 'Archive fee batches, derived from CV_04a (CUMVOUCH_BK240824), not extracted', 'CUMVOUCH_BK240824', 'CUMVOUCH_DET_ID', 'NEW_AC_NUMBER', 'TRANSACTION_DATE', false],
             // packs 3 and 4 (9 and 11 October 2026)
             ['SM_01',  'Scheme master',                         'SCHEME_MASTER',           'SCHEME_MST_ID',       null,            null,                   false],
             ['CT_01',  'Row counts of the reschedule, write-off and charges tables', null,  'TABLE_NAME',          null,            null,                   false],

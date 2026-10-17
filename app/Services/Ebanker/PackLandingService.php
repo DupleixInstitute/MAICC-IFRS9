@@ -36,6 +36,8 @@ class PackLandingService
     public const ROUTE_API = 'ROUTE_3_API';
     public const ROUTE_DIRECT = 'ROUTE_4_DIRECT';
     public const ROUTE_VENDOR = 'ROUTE_5_VENDOR';
+    /** A dataset derived on our side from data already landed (its manifest names the source loads and files), never an extract */
+    public const ROUTE_DERIVED = 'DERIVED_LOCAL';
 
     private const BATCH = 500;
 
@@ -174,6 +176,7 @@ class PackLandingService
         // the gates that look across the files and at what earlier loads hold (M2 a, b, c)
         $gates['pack'] = $checks->acrossPack(array_values($parsed), $dateFormat);
         $gates['pack']['dates_iso'] = $this->datesIsoSummary($gates['files']);
+        $gates['pack']['split_parts'] = $this->splitParts(array_values($parsed), (array) ($manifest['controls'] ?? []));
         $gates['pack']['accepted_exceptions'] = $manifest['accepted_exceptions'] ?? [];
         $failed = array_filter($gates['files'], fn ($f) => ($f['failures'] ?? []) !== []);
         $packFailed = array_filter($gates['pack'], fn ($g) => is_array($g) && ($g['level'] ?? null) === PackGates::LEVEL_ERROR && ($g['result'] ?? null) === 'FAIL');
@@ -198,8 +201,9 @@ class PackLandingService
             }
             if ($status === 'QUARANTINED') {
                 $kept = 0;
+                $seenByQuery = [];
                 foreach ($parsed as $plan) {
-                    $kept += $this->quarantineFile($loadId, $plan, $dateFormat, $gates['files'][$plan['file']]['failures'] ?? []);
+                    $kept += $this->quarantineFile($loadId, $plan, $dateFormat, $gates['files'][$plan['file']]['failures'] ?? [], $seenByQuery);
                 }
                 DB::table('ebanker_loads')->where('id', $loadId)->update(['status' => 'QUARANTINED', 'gates' => json_encode($gates), 'updated_at' => now()]);
                 $named = array_map(fn ($f) => $f['failures'], $failed) + array_map(fn ($g) => $g['failures'], $packFailed);
@@ -405,11 +409,14 @@ class PackLandingService
      * reasons a pack is refused) is kept with its row number appended so
      * that both rows survive.
      */
-    private function quarantineFile(int $loadId, array $plan, string $dateFormat, array $failures): int
+    private function quarantineFile(int $loadId, array $plan, string $dateFormat, array $failures, array &$seenByQuery = []): int
     {
         $q = $plan['query'];
         $accCol = $q->account_column; $dateCol = $q->date_column;
-        $now = now(); $batch = []; $seen = []; $kept = 0; $occurrence = [];
+        // the keys kept are shared by every file of the query in the load: parts that overlap (refused by splitParts) keep both copies
+        $seenByQuery[$q->query_id] ??= [];
+        $seen = &$seenByQuery[$q->query_id];
+        $now = now(); $batch = []; $kept = 0; $occurrence = [];
         foreach ($plan['rows'] as $i => $row) {
             $payload = json_encode($row, JSON_UNESCAPED_UNICODE);
             if ($q->key_column === null) {
@@ -421,7 +428,7 @@ class PackLandingService
                 $key = $this->sourceKey($q, $row, $i);
             }
             if (isset($seen[$key])) {
-                $key .= '#' . ($i + 2);
+                $key .= '#' . ($i + 2) . '@' . substr(hash('sha256', $plan['file']), 0, 6);
             }
             $seen[$key] = true;
             $batch[] = [
@@ -480,6 +487,58 @@ class PackLandingService
     private function keyColumns(object $query): array
     {
         return $query->key_column === null ? [] : array_values(array_filter(array_map('trim', explode(',', $query->key_column))));
+    }
+
+    /**
+     * One dataset in several files of one pack (a large export split by key range, Pack 14's large-export fallback): the
+     * per-file gates see each part alone, so this looks at the parts together. A key that appears in two parts of a keyed
+     * query fails (the ranges overlapped: the second part would silently re-version the first's rows), and where the
+     * manifest declares the control count of a query ("controls": {"GL_14a": {"rows": n, "source": "COUNT_...csv"}}, from
+     * the export's own count profile), the parts must add up to it, so a part left out or exported twice never lands as
+     * the whole. A control for a query with no part in the pack fails too.
+     *
+     * @param  list<array{file:string,query:object,rows:array}>  $parsed
+     * @param  array<string, array{rows?:int|string, source?:string}>  $controls
+     */
+    private function splitParts(array $parsed, array $controls): array
+    {
+        $byQuery = [];
+        foreach ($parsed as $p) {
+            $byQuery[$p['query']->query_id][] = $p;
+        }
+        $failures = [];
+        $checked = [];
+        foreach ($byQuery as $queryId => $parts) {
+            $query = $parts[0]['query'];
+            if (count($parts) > 1 && $query->key_column !== null) {
+                $seen = [];
+                foreach ($parts as $p) {
+                    foreach ($p['rows'] as $i => $r) {
+                        $k = $this->sourceKey($query, $r, $i);
+                        if (isset($seen[$k]) && $seen[$k] !== $p['file']) {
+                            $failures[] = "{$queryId}: key {$query->key_column} = '{$k}' is in two parts, {$seen[$k]} and {$p['file']}: the parts overlap";
+                            break 2;
+                        }
+                        $seen[$k] = $p['file'];
+                    }
+                }
+            }
+            $rows = array_sum(array_map(fn ($p) => count($p['rows']), $parts));
+            if (isset($controls[$queryId]['rows'])) {
+                $want = (int) $controls[$queryId]['rows'];
+                if ($want !== $rows) {
+                    $failures[] = "{$queryId}: the parts hold {$rows} row(s) but the control count is {$want}" . (isset($controls[$queryId]['source']) ? " ({$controls[$queryId]['source']})" : '') . ': a part is missing or doubled';
+                }
+            }
+            if (count($parts) > 1 || isset($controls[$queryId])) {
+                $checked[$queryId] = ['parts' => count($parts), 'rows' => $rows, 'control' => isset($controls[$queryId]['rows']) ? (int) $controls[$queryId]['rows'] : null];
+            }
+        }
+        foreach (array_diff_key($controls, $byQuery) as $queryId => $c) {
+            $failures[] = "{$queryId}: a control count is declared but no part of it is in the pack";
+        }
+
+        return ['level' => PackGates::LEVEL_ERROR, 'result' => $checked === [] && $failures === [] ? 'SKIPPED' : ($failures === [] ? 'PASS' : 'FAIL'), 'checked' => $checked, 'failures' => $failures];
     }
 
     /** The row's source key: the key column(s) joined by '|' (a query with no key column is keyed by content, contentKey). */
